@@ -1,6 +1,5 @@
-
-
-import Text.Parsec
+import Text.Parsec hiding (State)
+import Control.Monad.State
 
 data Mode = Strict | ByName
 
@@ -8,7 +7,7 @@ data Exp = App Mode Exp Exp | Var String | Lam String Exp
 
 type Env = [(String, Val)]
 
-data Val =  Thunk Env Exp | Closure Env String Exp | Literal String | ErrorVal String deriving Show
+data Val =  Thunk Env Exp | Closure Env String Exp | Inc | Dec | ErrorVal String
 
 -- exp =  exp exp | "\" var* "." exp | var "=" exp ";" exp | "(" exp ")" | var
 -- var = "<" | ">" | "+" | "-" | "!" | "?" | "#" | alpha*
@@ -29,9 +28,16 @@ instance Show Exp where
         showExp (Lam v1 (Lam v2 b)) = "(\\" ++ v1 ++ " " ++ tail (strip $ show $ Lam v2 b) ++ ")"
         showExp (Lam v b) = "(\\" ++ v ++ "." ++ strip (show b) ++ ")"
 
+
+instance Show Val where
+    show (Thunk _ exp) = show exp
+    show (Closure _ v b) = "\\" ++ v ++ "." ++ strip (show b)
+    show Inc = "+"
+    show Dec = "-"
+    show (ErrorVal s) = "error: " ++ s
+
 reserved = "\\.=;() "
 
-app = App ByName
 
 alpha = do 
     name <- many1 $ oneOf ['0'..'9'] <|> letter
@@ -48,7 +54,6 @@ parens = do
     exp <- expression
     char ')'
     return exp
-
 
 application = do
     atoms <- sepBy (variable <|> parens) spaces
@@ -80,29 +85,48 @@ grammar :: Parsec String () Exp
 grammar = expression
 
 
+eval :: [(String, Val)] -> Exp -> State Int Val
 eval env (Var s) = case lookup s env of
-    Just val -> val
-    Nothing -> ErrorVal $ "cant find find variable " ++ s ++ " in environment"
-eval env (Lam var body) = Closure env var body
-eval env (App Strict exp1 exp2) = applyStrict val1 val2 where
-    val1 = unthunk $ eval env exp1
-    val2 = eval env exp2
-eval env (App ByName exp1 exp2) = applyByName val1 exp2 where
-    val1 = unthunk $ eval env exp1
+    Just val -> return val
+    Nothing -> return $ ErrorVal $ "cant find find variable " ++ s ++ " in environment"
+eval env (Lam var body) = return $ Closure env var body
+eval env (App Strict exp1 exp2) = do
+    val1 <- eval env exp1
+    val2 <- eval env exp2
+    fun <- unthunk val1
+    apply fun val2
+eval env (App ByName exp1 exp2) = do
+    val1 <- eval env exp1
+    fun <- unthunk val1
+    apply fun $ Thunk env exp2
 
-applyStrict (Closure env var body) arg = eval ((var, arg): env) body
-applyByName (Closure env var body) arg = eval ((var, Thunk env arg): env) body
+apply :: Val -> Val -> State Int Val
+apply (Closure env var body) arg = eval ((var, arg): env) body
+apply Inc arg = do
+    old <- get
+    put $ old + 1
+    return arg
+apply Dec arg = do
+    old <- get
+    put $ old - 1
+    return arg
 
-unthunk (Thunk env body) = unthunk $ eval env body
-unthunk val = val
+unthunk :: Val -> State Int Val
+unthunk (Thunk env body) = do
+    val <- eval env body
+    unthunk val
+unthunk val = return val
 
+initialStore = 0
+app = App Strict
+builtin = [("+", Inc),("-", Dec)]
 
 main = do
-    let source = "true = \\x. x; true"
+    let source = "(\\x. x x x) (++)"
     let parsed = parse grammar "fuckup" source
     print parsed
-    let result = case parsed of
-            Right program -> eval [] program
-            Left error -> ErrorVal $ show error
-
+    let (result, store) = case parsed of
+            Right program -> runState (eval builtin program) initialStore
+            Left error -> (ErrorVal $ show error, initialStore)
     print result
+    print store
