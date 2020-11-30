@@ -2,10 +2,25 @@
 
 import Text.Parsec
 
-data Exp = App Exp Exp | Var String | Lam String Exp deriving Show
+data Exp = App Exp Exp | Var String | Lam String Exp
 
 -- exp =  exp exp | "\" var* "." exp | var "=" exp ";" exp | "(" exp ")" | var
 -- var = "<" | ">" | "+" | "-" | "!" | "?" | "#" | alpha*
+
+strip ('(':cs) = strip' [] cs where
+    strip' acc [')'] = reverse acc
+    strip' acc (c:cs) = strip' (c:acc) cs
+    strip' acc [] = reverse acc
+strip cs = cs
+
+
+instance Show Exp where
+    show e = strip $ showExp e where
+        showExp (App (App a b) c) = "(" ++ strip (showExp $ App a b) ++ " " ++ showExp c ++ ")"
+        showExp (App a b) = "(" ++ showExp a ++ " " ++ showExp b ++ ")"
+        showExp (Var s) = s
+        showExp (Lam v1 (Lam v2 b)) = "(\\" ++ v1 ++ " " ++ tail (strip $ show $ Lam v2 b) ++ ")"
+        showExp (Lam v b) = "(\\" ++ v ++ "." ++ strip (show b) ++ ")"
 
 reserved = "\\.=;() "
 
