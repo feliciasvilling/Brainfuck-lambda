@@ -4,6 +4,10 @@ import Text.Parsec
 
 data Exp = App Exp Exp | Var String | Lam String Exp
 
+type Env = [(String, Val)]
+
+data Val = Closure Env String Exp | Literal String | ErrorVal String deriving Show
+
 -- exp =  exp exp | "\" var* "." exp | var "=" exp ";" exp | "(" exp ")" | var
 -- var = "<" | ">" | "+" | "-" | "!" | "?" | "#" | alpha*
 
@@ -70,7 +74,23 @@ expression = do
 grammar :: Parsec String () Exp
 grammar = expression
 
+
+eval env (Var s) = case lookup s env of
+    Just val -> val
+    Nothing -> ErrorVal $ "cant find find variable " ++ s ++ " in environment"
+eval env (Lam var body) = Closure env var body
+eval env (App exp1 exp2) = apply val1 val2 where
+    val1 = eval env exp1
+    val2 = eval env exp2
+
+apply (Closure env var body) arg = eval ((var, arg): env) body
+
 main = do
-    let prog = "true = \\x. x; hej"
-    let parsed = parse grammar "fuckup" prog
+    let source = "true = \\x. x; true"
+    let parsed = parse grammar "fuckup" source
     print parsed
+    let result = case parsed of
+            Right program -> eval [] program
+            Left error -> ErrorVal $ show error
+
+    print result
