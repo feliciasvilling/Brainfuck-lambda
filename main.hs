@@ -115,6 +115,11 @@ apply Read arg = do
     val <- get
     apply (church val) arg
 
+apply (ErrorVal e) _ = return $ ErrorVal e
+apply _ (ErrorVal e) = return $ ErrorVal e
+apply val _ = do
+    return $ ErrorVal $ show val ++ " is not a function"
+
 church n = Closure [] "f" $ Lam "x" $ iter n (Var "x") where
     iter 0 arg = arg
     iter n arg = app (Var "f") $ iter (n-1) arg
