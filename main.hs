@@ -30,7 +30,7 @@ instance Show Exp where
 
 
 instance Show Val where
-    show (Thunk _ exp) = show exp
+    show (Thunk _ exp) = "[" ++ show exp ++"]"
     show (Closure _ v b) = "\\" ++ v ++ "." ++ strip (show b)
     show Inc = "+"
     show Dec = "-"
@@ -86,18 +86,19 @@ grammar = expression
 
 
 eval :: [(String, Val)] -> Exp -> State Int Val
-eval env (Var s) = case lookup s env of
+eval env exp = do
+    val <- eval' env exp
+    unthunk val
+eval' env (Var s) = case lookup s env of
     Just val -> return val
     Nothing -> return $ ErrorVal $ "cant find find variable " ++ s ++ " in environment"
-eval env (Lam var body) = return $ Closure env var body
-eval env (App Strict exp1 exp2) = do
-    val1 <- eval env exp1
-    val2 <- eval env exp2
-    fun <- unthunk val1
+eval' env (Lam var body) = return $ Closure env var body
+eval' env (App Strict exp1 exp2) = do
+    fun <- eval env exp1
+    val2 <- eval' env exp2
     apply fun val2
-eval env (App ByName exp1 exp2) = do
-    val1 <- eval env exp1
-    fun <- unthunk val1
+eval' env (App ByName exp1 exp2) = do
+    fun <- eval env exp1
     apply fun $ Thunk env exp2
 
 apply :: Val -> Val -> State Int Val
@@ -113,7 +114,7 @@ apply Dec arg = do
 
 unthunk :: Val -> State Int Val
 unthunk (Thunk env body) = do
-    val <- eval env body
+    val <- eval' env body
     unthunk val
 unthunk val = return val
 
