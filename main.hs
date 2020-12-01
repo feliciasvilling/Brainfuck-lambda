@@ -7,10 +7,10 @@ data Exp = App Mode Exp Exp | Var String | Lam String Exp
 
 type Env = [(String, Val)]
 
-data Val =  Thunk Env Exp | Closure Env String Exp | Inc | Dec | ErrorVal String
+data Val =  Thunk Env Exp | Closure Env String Exp | Inc | Dec | Read  | ErrorVal String
 
 -- exp =  exp exp | "\" var* "." exp | var "=" exp ";" exp | "(" exp ")" | var
--- var = "<" | ">" | "+" | "-" | "!" | "?" | "#" | alpha*
+-- var = "<" | ">" | "+" | "-" | "!" | "?" | "@" | alpha*
 
 strip ('(':cs) = strip' [] cs where
     strip' acc [')'] = reverse acc
@@ -111,6 +111,13 @@ apply Dec arg = do
     old <- get
     put $ old - 1
     return arg
+apply Read arg = do
+    val <- get
+    apply (church val) arg
+
+church n = Closure [] "f" $ Lam "x" $ iter n (Var "x") where
+    iter 0 arg = arg
+    iter n arg = app (Var "f") $ iter (n-1) arg
 
 unthunk :: Val -> State Int Val
 unthunk (Thunk env body) = do
@@ -119,11 +126,11 @@ unthunk (Thunk env body) = do
 unthunk val = return val
 
 initialStore = 0
-app = App Strict
-builtin = [("+", Inc),("-", Dec)]
+app = App ByName
+builtin = [("+", Inc),("-", Dec), ("@",Read)]
 
 main = do
-    let source = "(\\x. x x x) (++)"
+    let source = "i=\\x.x;(\\x. x x x) (++) @+ @+ i"
     let parsed = parse grammar "fuckup" source
     print parsed
     let (result, store) = case parsed of
