@@ -54,9 +54,16 @@ parens = do
   char ')'
   return exp
 
-application = do
-  atoms <- sepBy (variable <|> parens) spaces
-  return $ foldl1 app atoms
+atom = variable <|> parens
+
+application = do foldl1 app <$>  application' where
+    application' = do
+        fun <- atom
+        spaces
+        arg <- try application' <|> do
+            a <- atom
+            return [a]
+        return $ fun : arg
 
 lambda = do
   char '\\'
@@ -76,7 +83,7 @@ declaration = do
 
 expression = do
   spaces
-  exp <-  try declaration <|>  lambda <|> parens <|> application <?>  "expression"
+  exp <-  try declaration <|> lambda <|> application <|> parens <?> "expression"
   spaces
   return exp
 
@@ -136,7 +143,7 @@ app = App ByName
 builtin = [("+", Inc), ("-", Dec), ("@", Read)]
 
 main = do
-  let source = "i=\\x.x;(\\x. x x x) (++) @+ @+"
+  let source = "(\\x y z.x y z ) +++ "
   let parsed = parse grammar "fuckup" source
   print parsed
   let (result, store) = case parsed of
