@@ -39,14 +39,14 @@ instance Show Val where
 reserved = "\\.=;() "
 
 alpha = do
-  name <- many1 $ oneOf ['0' .. '9'] <|> letter
+  name <- many1 ( oneOf ['0' .. '9'] <|> letter) <?> "alphanumeric"
   return $ Var name
 
 single = do
   name <- noneOf reserved
   return $ Var [name]
 
-variable = alpha <|> single
+variable = alpha <|> single <?> "variable"
 
 parens = do
   char '('
@@ -76,7 +76,7 @@ declaration = do
 
 expression = do
   spaces
-  exp <- try declaration <|> lambda <|> application
+  exp <-  try declaration <|>  lambda <|> parens <|> application <?>  "expression"
   spaces
   return exp
 
