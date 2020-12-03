@@ -83,9 +83,9 @@ lambda = do
       return l
   char '.'
   exp <- expression
-  return $ foldr lam exp vars where
-      lam (Var s) body  = Lam s body
-      lam exp body  = App Strict exp body
+  return $ foldr lam exp vars
+  where
+    lam (Var s) body = Lam s body
 
 declaration = do
   Var var <- variable
@@ -98,7 +98,7 @@ declaration = do
 
 expression = do
   spaces
-  exp <- try declaration <|> lambda <|> application <|> parens <?> "expression"
+  exp <- try declaration <|> lambda <|> try application <|> atom <?> "expression"
   spaces
   return exp
 
