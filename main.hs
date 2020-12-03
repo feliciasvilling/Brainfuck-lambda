@@ -1,5 +1,6 @@
 import Control.Monad.State
 import Data.Char
+import System.Environment
 import System.IO
 import Text.Parsec hiding (State)
 
@@ -177,7 +178,8 @@ builtin = [("+", Inc), ("-", Dec), ("@", Read), ("?", Ask), ("!", Tell), ("<", B
 
 main = do
   hSetBuffering stdin NoBuffering
-  let source = "2=\\f x.f (f x); ?<?2(2!>2(+!))! "
+  args <- getArgs
+  source <- readFile $ head args
   let parsed = parse grammar "fuckup" source
   print parsed
   res <- case parsed of
