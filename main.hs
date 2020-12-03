@@ -186,11 +186,14 @@ builtin = [("+", Inc), ("-", Dec), ("@", Read), ("?", Ask), ("!", Tell), ("<", B
 main = do
   hSetBuffering stdin NoBuffering
   args <- getArgs
-  source <- readFile $ head args
+  let (debug, sourceFile) = case args of
+        [source] -> (False, source)
+        ["debug", source] -> (True, source)
+  source <- readFile sourceFile
   let parsed = parse grammar "fuckup" source
-  print parsed
+  when debug $ print parsed
   res <- case parsed of
     Right program -> runStateT (eval builtin program) initialStore
     Left error -> return (ErrorVal $ show error, initialStore)
   putChar '\n'
-  print res
+  when debug $ print res
