@@ -1,8 +1,7 @@
 import Control.Monad.State
-import Text.Parsec hiding (State)
-import GHC.Char
 import Data.Char
 import System.IO
+import Text.Parsec hiding (State)
 
 data Mode = Strict | ByName
 
@@ -46,7 +45,7 @@ instance Show Val where
 reserved = "\\.=;() "
 
 alpha = do
-  name <- many1 ( oneOf ['0' .. '9'] <|> letter) <?> "alphanumeric"
+  name <- many1 (oneOf ['0' .. '9'] <|> letter) <?> "alphanumeric"
   return $ Var name
 
 single = do
@@ -63,14 +62,16 @@ parens = do
 
 atom = variable <|> parens
 
-application = do foldl1 app <$>  application' where
+application = do foldl1 app <$> application'
+  where
     application' = do
-        fun <- atom
-        spaces
-        arg <- try application' <|> do
-            a <- atom
-            return [a]
-        return $ fun : arg
+      fun <- atom
+      spaces
+      arg <-
+        try application' <|> do
+          a <- atom
+          return [a]
+      return $ fun : arg
 
 lambda = do
   char '\\'
@@ -90,14 +91,14 @@ declaration = do
 
 expression = do
   spaces
-  exp <-  try declaration <|> lambda <|> application <|> parens <?> "expression"
+  exp <- try declaration <|> lambda <|> application <|> parens <?> "expression"
   spaces
   return exp
 
 grammar :: Parsec String () Exp
 grammar = expression
 
-eval :: [(String, Val)] -> Exp -> StateT ([Int],Int,[Int]) IO Val
+eval :: [(String, Val)] -> Exp -> StateT ([Int], Int, [Int]) IO Val
 eval env exp = do
   val <- eval' env exp
   unthunk val
@@ -127,19 +128,19 @@ apply Read arg = do
   (_, current, _) <- get
   apply (church current) arg
 apply Tell arg = do
-    (_, current, _) <- get
-    liftIO $ putChar $ chr current
-    return arg
+  (_, current, _) <- get
+  liftIO $ putChar $ chr current
+  return arg
 apply Ask arg = do
-    ch <- liftIO getChar
-    (back, _, forward) <- get
-    put (back, ord ch, forward)
-    return arg
+  ch <- liftIO getChar
+  (back, _, forward) <- get
+  put (back, ord ch, forward)
+  return arg
 apply Back arg = do
   state <- get
   case state of
-      ([], current, forward) -> put ([], 0, current : forward)
-      (new : back, current, forward) -> put (back, new, current : forward)
+    ([], current, forward) -> put ([], 0, current : forward)
+    (new : back, current, forward) -> put (back, new, current : forward)
   return arg
 apply Fore arg = do
   state <- get
@@ -147,7 +148,6 @@ apply Fore arg = do
     (back, current, []) -> put (current : back, 0, [])
     (back, current, new : forward) -> put (current : back, new, forward)
   return arg
-
 apply (ErrorVal e) _ = return $ ErrorVal e
 apply _ (ErrorVal e) = return $ ErrorVal e
 apply val _ = do
@@ -167,7 +167,7 @@ initialStore = ([], 0, [])
 
 app = App ByName
 
-builtin = [("+", Inc), ("-", Dec), ("@", Read), ("?", Ask), ("!", Tell), ("<",Back), (">",Fore)]
+builtin = [("+", Inc), ("-", Dec), ("@", Read), ("?", Ask), ("!", Tell), ("<", Back), (">", Fore)]
 
 main = do
   hSetBuffering stdin NoBuffering
@@ -175,7 +175,7 @@ main = do
   let parsed = parse grammar "fuckup" source
   print parsed
   res <- case parsed of
-        Right program -> runStateT (eval builtin program) initialStore
-        Left error -> return (ErrorVal $ show error, initialStore)
+    Right program -> runStateT (eval builtin program) initialStore
+    Left error -> return (ErrorVal $ show error, initialStore)
   putChar '\n'
   print res
