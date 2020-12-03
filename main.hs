@@ -10,7 +10,7 @@ data Exp = App Mode Exp Exp | Var String | Lam String Exp
 
 type Env = [(String, Val)]
 
-data Val = Thunk Env Exp | Closure Env String Exp | Inc | Dec | Read | Ask | Tell | ErrorVal String
+data Val = Thunk Env Exp | Closure Env String Exp | Inc | Dec | Read | Ask | Tell | Back | Fore | ErrorVal String
 
 -- exp =  exp exp | "\" var* "." exp | var "=" exp ";" exp | "(" exp ")" | var
 -- var = "<" | ">" | "+" | "-" | "!" | "?" | "@" | alpha*
@@ -39,6 +39,8 @@ instance Show Val where
   show Dec = "-"
   show Ask = "?"
   show Tell = "!"
+  show Back = "<"
+  show Fore = ">"
   show (ErrorVal s) = "error: " ++ s
 
 reserved = "\\.=;() "
@@ -95,7 +97,7 @@ expression = do
 grammar :: Parsec String () Exp
 grammar = expression
 
-eval :: [(String, Val)] -> Exp -> StateT Int IO Val
+eval :: [(String, Val)] -> Exp -> StateT ([Int],Int,[Int]) IO Val
 eval env exp = do
   val <- eval' env exp
   unthunk val
@@ -112,27 +114,40 @@ eval' env (App ByName exp1 exp2) = do
   fun <- eval env exp1
   apply fun $ Thunk env exp2
 
-apply :: Val -> Val -> StateT Int IO Val
 apply (Closure env var body) arg = eval ((var, arg) : env) body
 apply Inc arg = do
-  old <- get
-  put $ old + 1
+  (back, current, forward) <- get
+  put (back, current + 1, forward)
   return arg
 apply Dec arg = do
-  old <- get
-  put $ old - 1
+  (back, current, forward) <- get
+  put (back, current - 1, forward)
   return arg
 apply Read arg = do
-  val <- get
-  apply (church val) arg
+  (_, current, _) <- get
+  apply (church current) arg
 apply Tell arg = do
-    n <- get
-    liftIO $ putChar $ chr n
+    (_, current, _) <- get
+    liftIO $ putChar $ chr current
     return arg
 apply Ask arg = do
     ch <- liftIO getChar
-    put $ ord ch
+    (back, _, forward) <- get
+    put (back, ord ch, forward)
     return arg
+apply Back arg = do
+  state <- get
+  case state of
+      ([], current, forward) -> put ([], 0, current : forward)
+      (new : back, current, forward) -> put (back, new, current : forward)
+  return arg
+apply Fore arg = do
+  state <- get
+  case state of
+    (back, current, []) -> put (current : back, 0, [])
+    (back, current, new : forward) -> put (current : back, new, forward)
+  return arg
+
 apply (ErrorVal e) _ = return $ ErrorVal e
 apply _ (ErrorVal e) = return $ ErrorVal e
 apply val _ = do
@@ -143,21 +158,20 @@ church n = Closure [] "f" $ Lam "x" $ iter n (Var "x")
     iter 0 arg = arg
     iter n arg = app (Var "f") $ iter (n -1) arg
 
-unthunk :: Val -> StateT Int IO Val
 unthunk (Thunk env body) = do
   val <- eval' env body
   unthunk val
 unthunk val = return val
 
-initialStore = 0
+initialStore = ([], 0, [])
 
 app = App ByName
 
-builtin = [("+", Inc), ("-", Dec), ("@", Read), ("?", Ask), ("!", Tell)]
+builtin = [("+", Inc), ("-", Dec), ("@", Read), ("?", Ask), ("!", Tell), ("<",Back), (">",Fore)]
 
 main = do
   hSetBuffering stdin NoBuffering
-  let source = "2=\\f x.f (f x); !!?!?!- "
+  let source = "2=\\f x.f (f x); ?<?2(2!>2(+!))! "
   let parsed = parse grammar "fuckup" source
   print parsed
   res <- case parsed of
