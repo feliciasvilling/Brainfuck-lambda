@@ -75,10 +75,16 @@ application = do foldl1 app <$> application'
 
 lambda = do
   char '\\'
-  vars <- sepBy (many1 letter) spaces
+  spaces
+  vars <- many1 $ do
+      l <- variable
+      spaces
+      return l
   char '.'
   exp <- expression
-  return $ foldr Lam exp vars
+  return $ foldr lam exp vars where
+      lam (Var s) body  = Lam s body
+      lam exp body  = App Strict exp body
 
 declaration = do
   Var var <- variable
