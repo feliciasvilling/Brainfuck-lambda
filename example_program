@@ -1,1 +1,6 @@
-i= \x.x ;2=\ f x .f (f x); 2 2 2 (++++) i !!
+i= \x.
+x ;
+# identity
+2=\  # comments everywere
+f x .f (f x);
+2 2 2 (+++++) i !!

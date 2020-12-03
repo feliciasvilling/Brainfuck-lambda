@@ -43,7 +43,14 @@ instance Show Val where
   show Fore = ">"
   show (ErrorVal s) = "error: " ++ s
 
-reserved = "\\.=;() "
+reserved = "\\.=;()# "
+
+comment = do
+  char '#'
+  many $ noneOf ['\n']
+  return ' '
+
+blank = many $ space <|> comment
 
 alpha = do
   name <- many1 (oneOf ['0' .. '9'] <|> letter) <?> "alphanumeric"
@@ -67,7 +74,7 @@ application = do foldl1 app <$> application'
   where
     application' = do
       fun <- atom
-      spaces
+      blank
       arg <-
         try application' <|> do
           a <- atom
@@ -76,11 +83,11 @@ application = do foldl1 app <$> application'
 
 lambda = do
   char '\\'
-  spaces
+  blank
   vars <- many1 $ do
-      l <- variable
-      spaces
-      return l
+    l <- variable
+    blank
+    return l
   char '.'
   exp <- expression
   return $ foldr lam exp vars
@@ -89,7 +96,7 @@ lambda = do
 
 declaration = do
   Var var <- variable
-  spaces
+  blank
   char '='
   exp1 <- expression
   char ';'
@@ -97,9 +104,9 @@ declaration = do
   return $ app (Lam var exp2) exp1
 
 expression = do
-  spaces
+  blank
   exp <- try declaration <|> lambda <|> try application <|> atom <?> "expression"
-  spaces
+  blank
   return exp
 
 grammar :: Parsec String () Exp
