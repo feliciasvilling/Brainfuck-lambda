@@ -26,11 +26,12 @@ instance Show Exp where
   show e = strip $ showExp e
     where
       showExp :: Exp -> String
+      showExp (App Strict (Lam v body) exp) = v ++ " = " ++ showExp exp ++ ";\n" ++ showExp body
       showExp (App _ (App m a b) c) = "(" ++ strip (showExp $ App m a b) ++ " " ++ showExp c ++ ")"
       showExp (App _ a b) = "(" ++ showExp a ++ " " ++ showExp b ++ ")"
       showExp (Var s) = s
       showExp (Lam v1 (Lam v2 b)) = "(\\" ++ v1 ++ " " ++ tail (strip $ show $ Lam v2 b) ++ ")"
-      showExp (Lam v b) = "(\\" ++ v ++ "." ++ strip (show b) ++ ")"
+      showExp (Lam v b) = "(\\" ++ v ++ ". " ++ strip (show b) ++ ")"
 
 instance Show Val where
   show (Thunk _ exp) = "[" ++ show exp ++ "]"
@@ -43,7 +44,7 @@ instance Show Val where
   show Fore = ">"
   show (ErrorVal s) = "error: " ++ s
 
-reserved = "\\.=;()# "
+reserved = "\\.:=;()# "
 
 comment = do
   char '#'
@@ -88,7 +89,7 @@ lambda = do
     l <- variable
     blank
     return l
-  char '.'
+  char '.' <|> char ':'
   exp <- expression
   return $ foldr lam exp vars
   where
@@ -101,7 +102,7 @@ declaration = do
   exp1 <- expression
   char ';'
   exp2 <- expression
-  return $ app (Lam var exp2) exp1
+  return $ App Strict (Lam var exp2) exp1
 
 expression = do
   blank

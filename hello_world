@@ -1,0 +1,38 @@
+0 = \f x: x; 
+
+succ = \n f x: f (n f x);
+plus = \m n: m succ n;
+times = \m n: m (plus n) 0;
+
+1 = succ 0;
+2 = succ 1;
+3 = succ 2;
+4 = succ 3;
+5 = succ 4;
+6 = succ 5;
+7 = succ 6;
+8 = succ 7;
+9 = succ 8;
+10 = succ 9;
+11 = succ 10;
+12 = succ 11;
+15 = times 5 3;
+20 = times 10 2;
+30 = times 10 3;
+60 = times 10 6;
+96 = plus (times 10 9) 6;
+char = \n: plus 96 n;
+(char 8)+ ! >
+(char 5)+ ! >
+(char 12)+ ! >
+(char 12)+ ! >
+(char 15)+ ! >
+(plus 30 2)+ ! >
+(char (plus 20 3))+ ! >
+(char 15)+ ! >
+(char (plus 15 3))+ ! >
+(char 12)+ ! >
+(char 4)+ ! >
+(plus 30 3)+ ! >
+
+0

@@ -1,6 +1,54 @@
-i= \x.
-x ;
-# identity
-2=\  # comments everywere
-f x .f (f x);
-2 2 2 (+++++) i !!
+
+# combinators
+i = \x.x; k = \x y. x; s = \x y z. x z (y z);
+
+# define Boolean values
+true = \x y: x;    false = \x y: y;
+
+# IF statement, where P is a predicate which returns a Boolean value
+if = \P a b: P a b;
+
+# not function
+not = \P: if P false true;
+
+# Y combinator
+Y = \f: \x: f (x x) (\x: f (x x));
+
+# while loop using IF and Y combinator to recursively call a function on a parameter while the Predicate is true
+while = \P f x: if P (Y f x) x;
+
+# check if store is zero
+_ = \ignore. @ (k i) false true;
+
+# set store to zero
+zero = \x. @-x; 
+
+# write function which takes a church numeral
+W = \n: zero n +;
+
+# define church numbers 0 & 1
+0 = \f x: x;   1 = \f x: f x;
+
+# arithmetic function definitions
+succ = \n f x: f (n f x);
+plus = \m n: m succ n;
+times = \m n: m (plus n) 0;
+
+ignore = (5 2) +  (PLUS 6 (PLUS 4 4)) + i !  i;
+
+# store church numeral in INPUT from data pointer
+INPUT = @ 1;
+
+ignore = > i;
+
+# save 47 to store
+ignore = (5 2) +  (PLUS 6 (PLUS 4 4)) ++ i ! >
+
+# write input back to the data pointer, as read 0s it
+ignore = W INPUT;
+
+# double the value and write it to the data pointer
+#ignore = W (PLUS INPUT INPUT);
+
+# output the current value
+! !
